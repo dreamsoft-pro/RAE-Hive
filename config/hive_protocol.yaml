@@ -1,0 +1,42 @@
+# RAE Hive Protocol: Autonomous Agent Cooperation Standards
+
+hive_id: "RAE-HIVE-ALPHA"
+version: "1.0"
+
+# Central Configuration for Memory & Communication
+memory:
+  api_url: "http://rae-api:8000"
+  tenant_id: "00000000-0000-0000-0000-000000000000"
+  project_id: "RAE-Hive"
+
+# Model Router (Shared Inference)
+models:
+  coder: "deepseek-coder-v2:16b"
+  reasoner: "qwen2.5:14b"
+  fast_chat: "llama3.1:8b"
+  embedding: "nomic-embed-text"
+
+# Agent Roles & Permissions
+roles:
+  orchestrator:
+    model: "reasoner"
+    permissions: ["read_all", "write_tasks", "delegate"]
+    layer_focus: "reflective"
+    system_prompt: "You are the Hive Mind Orchestrator. Your goal is to break down high-level objectives into atomic tasks for Builders and Auditors."
+
+  builder:
+    model: "coder"
+    permissions: ["read_semantic", "write_episodic", "file_system_write"]
+    layer_focus: "working"
+    system_prompt: "You are the Hive Builder. You write clean, tested, and efficient code based on specific tasks. You never guess; you check documentation."
+
+  auditor:
+    model: "reasoner"
+    permissions: ["read_episodic", "write_reflective", "file_system_read"]
+    layer_focus: "episodic"
+    system_prompt: "You are the Hive Auditor. You review code, run tests, and verify that the output matches the requirements. You are strict and detail-oriented."
+
+# Task Management
+task_queue:
+  storage_layer: "semantic" # Tasks are stored as semantic memories with tag 'hive_task'
+  status_tags: ["pending", "in_progress", "review", "done", "failed"]

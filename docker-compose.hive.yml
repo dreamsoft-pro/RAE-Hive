@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  hive-orchestrator:
+    build:
+      context: ..
+      dockerfile: agent_hive/Dockerfile
+    container_name: hive-orchestrator
+    environment:
+      - RAE_API_URL=http://rae-api-dev:8000
+      - AGENT_ROLE=orchestrator
+      - HIVE_CONFIG_PATH=/app/config/hive_protocol.yaml
+    volumes:
+      - ./agents/orchestrator:/app/agent_code
+      - ./tasks:/app/tasks
+      - ..:/app/src:ro # Read-only access to full codebase
+    command: ["python", "-m", "agent_code.main"]
+    networks:
+      - rae-network
+    restart: unless-stopped
+
+  hive-builder:
+    build:
+      context: ..
+      dockerfile: agent_hive/Dockerfile
+    container_name: hive-builder
+    environment:
+      - RAE_API_URL=http://rae-api-dev:8000
+      - AGENT_ROLE=builder
+      - HIVE_CONFIG_PATH=/app/config/hive_protocol.yaml
+    volumes:
+      - ./agents/builder:/app/agent_code
+      - ./work_dir:/app/work_dir
+      - ..:/app/src # Read-write access to codebase for improvements
+    command: ["python", "-m", "agent_code.main"]
+    networks:
+      - rae-network
+    restart: unless-stopped
+
+  hive-auditor:
+    build:
+      context: ..
+      dockerfile: agent_hive/Dockerfile
+    container_name: hive-auditor
+    environment:
+      - RAE_API_URL=http://rae-api-dev:8000
+      - AGENT_ROLE=auditor
+      - HIVE_CONFIG_PATH=/app/config/hive_protocol.yaml
+    volumes:
+      - ./agents/auditor:/app/agent_code
+      - ./work_dir:/app/to_audit:ro
+      - ..:/app/src:ro # Read-only access for verification
+    command: ["python", "-m", "agent_code.main"]
+    networks:
+      - rae-network
+    restart: unless-stopped
+
+networks:
+  rae-network:
+    external: true
+    name: rae-agentic-memory-agnostic-core_rae-network
