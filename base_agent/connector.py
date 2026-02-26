@@ -108,37 +108,57 @@ class HiveMindConnector:
         )
 
     async def get_tasks(self, status: str = "pending") -> List[Dict[str, Any]]:
-        """Fetch tasks by aggregating status from event history."""
-        # Fetch base tasks
-        base_tasks = await self.list_memories(layer="semantic", tags=["hive_task"], limit=100)
-        
-        # Fetch all task updates
-        updates = await self.list_memories(layer="semantic", tags=["hive_task_update"], limit=500)
-        
-        # Map latest status by task_id
-        latest_status_map = {}
-        for up in sorted(updates, key=lambda x: x.get("timestamp", ""), reverse=False):
-            meta = up.get("metadata", {})
-            t_id = meta.get("related_task_id")
-            if t_id:
-                latest_status_map[t_id] = meta.get("status")
+        """Fetch tasks using multiple fallback strategies (Tags -> Metadata -> Content)."""
+        async with httpx.AsyncClient() as client:
+            # 1. Try to get all memories for the project from semantic layer (Postgres fallback)
+            params = {"project": self.project_id, "layer": "semantic", "limit": 100}
+            resp = await client.get(f"{self.base_url}/v2/memories/", headers=self.headers, params=params)
+            
+            if resp.status_code != 200:
+                logger.error("failed_to_fetch_base_memories", status=resp.status_code)
+                return []
                 
-        # Aggregate
-        active_tasks = []
-        for task in base_tasks:
-            meta = task.get("metadata", {})
-            t_id = task.get("id")
+            all_memories = resp.json().get("results", [])
             
-            # Derived status (event sourced)
-            current_status = latest_status_map.get(t_id, meta.get("status", "pending"))
+            # 2. Identify base tasks and updates
+            base_tasks = []
+            updates = []
+            for m in all_memories:
+                content = m.get("content", "").lower()
+                tags = m.get("tags", [])
+                meta = m.get("metadata", {})
+                
+                # Identify updates
+                if "hive_task_update" in tags or "task update" in content:
+                    updates.append(m)
+                # Identify base tasks (by tag or by metadata pattern)
+                elif "hive_task" in tags or "task_id" in meta or "objective_ref" in meta:
+                    base_tasks.append(m)
+
+            # 3. Map latest status by related_task_id
+            latest_status_map = {}
+            for up in sorted(updates, key=lambda x: x.get("timestamp") or "", reverse=False):
+                u_meta = up.get("metadata", {})
+                t_id = u_meta.get("related_task_id")
+                if t_id:
+                    latest_status_map[t_id] = u_meta.get("status")
+
+            # 4. Filter by status and assignee
+            final_tasks = []
+            for task in base_tasks:
+                t_id = task.get("id")
+                meta = task.get("metadata", {})
+                
+                # Derive current status
+                current_status = latest_status_map.get(t_id, meta.get("status", "pending"))
+                
+                if current_status == status:
+                    # Role check
+                    if self.role == "orchestrator" or meta.get("assignee") == self.role or self.role == "auditor":
+                        task["current_status"] = current_status
+                        final_tasks.append(task)
             
-            if current_status == status:
-                if self.role == "orchestrator" or meta.get("assignee") == self.role:
-                    # Inject current status into the returned object for easy access
-                    task["current_status"] = current_status
-                    active_tasks.append(task)
-                    
-        return active_tasks
+            return final_tasks
 
     async def update_task(self, memory_id: str, status: str, result: str = ""):
         """Update a task's status via Event Sourcing (append-only log)."""
