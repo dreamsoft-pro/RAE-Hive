@@ -1,7 +1,6 @@
 """
-RAE Hive Orchestrator.
-Main entry point for the agent that plans and delegates tasks.
-Revised: Now uses Semantic 'hive_objective' for steering.
+RAE Hive Orchestrator & Autonomous L2/L3 Expert.
+Plans new objectives AND resolves loops flagged by the Semantic Watchdog.
 """
 
 import asyncio
@@ -11,75 +10,88 @@ from base_agent.connector import HiveMindConnector
 
 logger = structlog.get_logger(__name__)
 
+async def handle_new_objectives(connector: HiveMindConnector):
+    """Processes brand new user objectives into tasks."""
+    objectives = await connector.list_memories(layer="semantic", tags=["hive_objective", "pending"], limit=5)
+    for objective in objectives:
+        obj_id = objective["id"]
+        content = objective["content"]
+        logger.info("processing_new_objective", id=obj_id)
+        
+        plan = await connector.think(f"Deconstruct this into a task: {content}")
+        
+        await connector.add_memory(
+            content=plan,
+            layer="semantic",
+            tags=["hive_task", "builder", "pending"],
+            metadata={"task_id": f"task_{obj_id[:8]}", "assignee": "builder", "status": "pending"}
+        )
+        await connector.add_memory(
+            content=f"Objective {obj_id} delegated.", layer="semantic", tags=["hive_objective_processed"]
+        )
+
+async def resolve_expert_escalations(connector: HiveMindConnector):
+    """Acts as L2/L3 Council to break semantic loops flagged by Watchdog."""
+    # We query all semantic tasks looking for escalation flags in metadata
+    tasks = await connector.query_memories(query="*", layers=["semantic"], tags=["hive_task"], k=20)
+    
+    for t_wrapper in tasks:
+        # Depending on query return format, metadata might be nested
+        task = t_wrapper if isinstance(t_wrapper, dict) else t_wrapper.__dict__
+        meta = task.get("metadata", {})
+        task_id = meta.get("task_id", task.get("id"))
+        
+        if meta.get("requires_expert") is True or meta.get("status") == "BLOCKED_L3":
+            logger.warning("autonomous_intervention_triggered", task_id=task_id, level=meta.get("escalation_level", "L3"))
+            
+            # Fetch the rejection history from episodic memory
+            history = await connector.query_memories(query=f"task_id:{task_id}", layers=["episodic"], tags=["audit_rejection"], k=5)
+            error_context = "\n".join([h.get("content", "") for h in history])
+            
+            # L2/L3 Diagnostic Prompt
+            prompt = f"""
+            You are the L2 Expert Council. The L1 Builder is stuck in an infinite loop on task: {task_id}.
+            
+            HISTORY OF FAILURES:
+            {error_context}
+            
+            YOUR JOB:
+            1. Diagnose WHY the builder keeps failing (e.g., missing dependencies, wrong assumptions).
+            2. Provide an EXACT code snippet or hard directive that the Builder MUST use to break the loop.
+            """
+            
+            solution = await connector.think(prompt)
+            
+            # Inject the solution as Evidence
+            await connector.add_memory(
+                content=f"EXPERT INTERVENTION (L2/L3): {solution}",
+                layer="working",
+                tags=["evidence_injection", "expert_guidance"],
+                metadata={"related_task_id": task_id, "instruction": "STOP LOOPING. USE THIS EXPERT CODE."}
+            )
+            
+            # Reset task state to force Builder to retry with new evidence
+            # We clear the requires_expert flag so we don't loop the intervention
+            new_meta = {**meta, "requires_expert": False, "status": "pending", "fail_count": 0}
+            # Note: We simulate the update via connector logging for now, 
+            # real implementation would use the PATCH endpoint.
+            await connector.update_task(task_id, status="pending", result="Intervention applied.")
+            logger.info("intervention_applied", task_id=task_id)
+
+
 async def orchestrator_loop():
     connector = HiveMindConnector(agent_role="orchestrator")
     logger.info("orchestrator_started", status="online")
-    
-    # Register self in episodic memory
-    await connector.log_activity("Orchestrator online and watching Semantic Objectives.")
+    await connector.log_activity("Autonomous L2 Expert online.")
 
     while True:
         try:
-            # 1. Check for high-level User Objectives in Semantic Layer
-            # We look for memories tagged 'hive_objective' with status 'pending'
-            objectives = await connector.list_memories(
-                layer="semantic",
-                tags=["hive_objective", "pending"],
-                limit=5
-            )
-
-            for objective in objectives:
-                obj_id = objective["id"]
-                content = objective["content"]
-                logger.info("processing_objective", id=obj_id, content=content)
-                
-                # 2. Use RAE to "think" about deconstructing this objective
-                # Actively queries source code and memory to build a plan
-                thought_prompt = f"""
-                User Objective: {content}
-                
-                Your Task:
-                1. Analyze the current codebase state via RAE Memory.
-                2. Deconstruct this objective into specific, atomic tasks for the BUILDER.
-                3. Each task must include: target files, logic to implement, and verification steps.
-                
-                Output your plan as a list of tasks.
-                """
-                
-                plan = await connector.think(thought_prompt)
-                await connector.log_activity(f"Deconstructed objective {obj_id} into plan.")
-
-                # 3. Create real tasks for the Builder in Semantic Layer
-                # In a more advanced version, we'd parse the 'plan' into multiple memories.
-                # For now, we delegate the whole plan as Task 1.
-                await connector.add_memory(
-                    content=plan,
-                    layer="semantic",
-                    tags=["hive_task", "builder", "pending"],
-                    metadata={
-                        "task_id": f"task_{obj_id[:8]}",
-                        "assignee": "builder",
-                        "status": "pending",
-                        "objective_ref": str(obj_id)
-                    }
-                )
-                
-                # 4. Mark objective as 'processed' to avoid duplicate planning
-                # We do this by adding an update or changing tags if the API supported it.
-                # For now, we add a memory signifying the objective is being handled.
-                await connector.add_memory(
-                    content=f"Objective {obj_id} is now being handled by the Hive.",
-                    layer="semantic",
-                    tags=["hive_objective_processed"],
-                    metadata={"related_objective_id": obj_id}
-                )
-                
-                await connector.log_activity(f"Delegated tasks for objective {obj_id} to Builder.")
-
+            await handle_new_objectives(connector)
+            await resolve_expert_escalations(connector)
         except Exception as e:
             logger.error("orchestrator_error", error=str(e))
             
-        await asyncio.sleep(30) # Poll every 30 seconds
+        await asyncio.sleep(30)
 
 if __name__ == "__main__":
     asyncio.run(orchestrator_loop())

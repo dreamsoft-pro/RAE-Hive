@@ -21,6 +21,44 @@ services:
       - rae-network
     restart: unless-stopped
 
+  hive-auditor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hive-auditor
+    command: python3 agents/auditor/main.py
+    user: root
+    environment:
+      - RAE_API_URL=http://172.17.0.1:8001
+      - OLLAMA_URL=http://172.17.0.1:11434/api/generate
+      - PYTHONPATH=/app
+    volumes:
+      - ./work_dir:/app/work_dir
+      - ./agents:/app/agents
+      - ./base_agent:/app/base_agent
+    networks:
+      - rae-network
+    restart: unless-stopped
+
+  hive-orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hive-orchestrator
+    command: python3 agents/orchestrator/main.py
+    user: root
+    environment:
+      - RAE_API_URL=http://172.17.0.1:8001
+      - OLLAMA_URL=http://172.17.0.1:11434/api/generate
+      - PYTHONPATH=/app
+    volumes:
+      - ./work_dir:/app/work_dir
+      - ./agents:/app/agents
+      - ./base_agent:/app/base_agent
+    networks:
+      - rae-network
+    restart: unless-stopped
+
 networks:
   rae-network:
     external: true

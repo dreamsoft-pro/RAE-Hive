@@ -55,14 +55,23 @@ async def builder_loop():
                 
                 plan = await connector.think(thought_prompt)
                 
-                # 3. Apply changes (Simulated for safety, but can be real FS write)
-                # For now, we write to a result file, but the infrastructure allows writing to /app/src
-                result_filename = f"implementation_{task_id}.py"
-                with open(os.path.join("/app/work_dir", result_filename), "w") as f:
-                    f.write(plan)
+                # 3. Apply changes
+                # Extract code from plan if it's wrapped in triple backticks
+                code_content = plan
+                if "```typescript" in plan:
+                    code_content = plan.split("```typescript")[1].split("```")[0].strip()
+                elif "```" in plan:
+                    code_content = plan.split("```")[1].split("```")[0].strip()
+
+                result_filename = "OperationService.ts"
+                target_path = os.path.join("/app/work_dir", result_filename)
                 
+                with open(target_path, "w") as f:
+                    f.write(code_content)
+                
+                logger.info("file_updated", path=target_path)
                 await connector.update_task(task["id"], status="review", result=result_filename)
-                await connector.log_activity(f"Proposed implementation for {task_id} ready for audit.")
+                await connector.log_activity(f"Modernized {result_filename} implementation ready for audit.")
 
         except Exception as e:
             logger.error("builder_error", error=str(e))

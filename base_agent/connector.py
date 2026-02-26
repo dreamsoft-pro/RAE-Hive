@@ -108,21 +108,40 @@ class HiveMindConnector:
         )
 
     async def get_tasks(self, status: str = "pending") -> List[Dict[str, Any]]:
-        """Fetch tasks assigned to this role or general pending tasks."""
-        # Use list_memories from semantic layer
-        memories = await self.list_memories(layer="semantic", limit=100)
+        """Fetch tasks by aggregating status from event history."""
+        # Fetch base tasks
+        base_tasks = await self.list_memories(layer="semantic", tags=["hive_task"], limit=100)
         
-        tasks = []
-        for m in memories:
-            meta = m.get("metadata", {})
-            # Match task_id and status, and assignee if not orchestrator
-            if "task_id" in meta and meta.get("status") == status:
+        # Fetch all task updates
+        updates = await self.list_memories(layer="semantic", tags=["hive_task_update"], limit=500)
+        
+        # Map latest status by task_id
+        latest_status_map = {}
+        for up in sorted(updates, key=lambda x: x.get("timestamp", ""), reverse=False):
+            meta = up.get("metadata", {})
+            t_id = meta.get("related_task_id")
+            if t_id:
+                latest_status_map[t_id] = meta.get("status")
+                
+        # Aggregate
+        active_tasks = []
+        for task in base_tasks:
+            meta = task.get("metadata", {})
+            t_id = task.get("id")
+            
+            # Derived status (event sourced)
+            current_status = latest_status_map.get(t_id, meta.get("status", "pending"))
+            
+            if current_status == status:
                 if self.role == "orchestrator" or meta.get("assignee") == self.role:
-                    tasks.append(m)
-        return tasks
+                    # Inject current status into the returned object for easy access
+                    task["current_status"] = current_status
+                    active_tasks.append(task)
+                    
+        return active_tasks
 
     async def update_task(self, memory_id: str, status: str, result: str = ""):
-        """Update a task's status (by adding a new update memory)."""
+        """Update a task's status via Event Sourcing (append-only log)."""
         await self.add_memory(
             content=f"Task Update for {memory_id}: {status}",
             layer="semantic",
@@ -130,8 +149,7 @@ class HiveMindConnector:
             metadata={
                 "related_task_id": memory_id, 
                 "status": status, 
-                "result": result,
-                "task_id": "UNKNOWN" # We'd need to fetch original task to propagate task_id
+                "result": result
             }
         )
         logger.info("task_updated", memory_id=memory_id, status=status)
