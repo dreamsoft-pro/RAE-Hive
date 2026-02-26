@@ -30,8 +30,14 @@ class HiveMindConnector:
     def _load_config(self) -> Dict[str, Any]:
         config_path = os.getenv("HIVE_CONFIG_PATH", "/app/config/hive_protocol.yaml")
         if not os.path.exists(config_path):
-            # Fallback for local testing
+            # Fallback: find relative to this file
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            config_path = os.path.join(base_dir, "config/hive_protocol.yaml")
+            
+        if not os.path.exists(config_path):
+            # Last resort fallback for legacy structure
             config_path = "agent_hive/config/hive_protocol.yaml"
+            
         with open(config_path, "r") as f:
             return yaml.safe_load(f)
 

@@ -74,7 +74,7 @@ async def builder_loop():
                     code_content = plan.split("```")[1].split("```")[0].strip()
 
                 result_filename = "OperationService.ts"
-                target_path = os.path.join("/app/work_dir", result_filename)
+                target_path = os.path.join("work_dir", result_filename)
                 
                 with open(target_path, "w") as f:
                     f.write(code_content)

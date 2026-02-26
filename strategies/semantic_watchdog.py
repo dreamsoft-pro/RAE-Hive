@@ -93,12 +93,27 @@ async def check_semantic_loops():
                 continue
                 
             # Count audit rejections from episodic
+            # FALLBACK: If tags are missing, search by content pattern
             rej_resp = await client.post(f"{API_URL}/v2/memories/query", 
-                                       json={"query": f"task_id:{task_id}", "layers": ["episodic"], "tags": ["audit_rejection"], "k": 50}, 
+                                       json={
+                                           "query": f"Audit failed for {task_id}", 
+                                           "layers": ["episodic", "semantic"], 
+                                           "project": PROJECT_ID,
+                                           "k": 50
+                                       }, 
                                        headers=HEADERS)
             
-            rejections = rej_resp.json().get("results", []) if rej_resp.status_code == 200 else []
+            all_results = rej_resp.json().get("results", []) if rej_resp.status_code == 200 else []
+            
+            # Strict filtering: must contain the task_id and failure keywords
+            rejections = [
+                r for r in all_results 
+                if task_id in r.get("content", "") and ("Audit failed" in r.get("content", "") or "audit_rejection" in r.get("tags", []))
+            ]
+            
             fail_count = len(rejections)
+            if fail_count > 0:
+                logger.info("rejections_found", task_id=task_id, count=fail_count)
             
             if fail_count >= L3_THRESHOLD:
                 await update_task_metadata(client, task_id, {"status": "BLOCKED_L3"})
