@@ -29,14 +29,28 @@ async def builder_loop():
                 await connector.update_task(task["id"], status="in_progress")
                 await connector.log_activity(f"Working on: {objective}")
 
+                # 1. Fetch evidence for this task (L2 Directives)
+                evidence_resp = await connector.query_memories(
+                    query=f"related_task_id:{task_id}",
+                    project="RAE-Hive",
+                    layers=["working", "semantic"],
+                    tags=["evidence_injection"]
+                )
+                evidence_context = ""
+                if evidence_resp and evidence_resp.get("results"):
+                    evidence_context = "\n### CRITICAL EVIDENCE (Legacy Source & Directives):\n"
+                    for res in evidence_resp["results"]:
+                        evidence_context += f"- {res.get('content')}\n"
+
                 # 2. Use RAE to "think" about the implementation
-                # The agent will call /v2/agent/execute which uses GraphRAG + Hybrid Search
                 thought_prompt = f"""
                 Objective: {objective}
+                {evidence_context}
+                
                 Instructions:
-                1. Read the relevant files in /app/src.
-                2. Plan the changes to improve determinism or performance.
-                3. Provide the full code or patch.
+                1. Use the CRITICAL EVIDENCE provided above (Legacy Source).
+                2. DO NOT create more plans. Write the full TypeScript code NOW.
+                3. Follow the contract strictly.
                 """
                 
                 plan = await connector.think(thought_prompt)

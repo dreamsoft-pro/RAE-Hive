@@ -61,12 +61,12 @@ class HiveMindConnector:
                 return filtered
             return results
 
-    async def add_memory(self, content: str, layer: str, tags: List[str] = None, metadata: Dict[str, Any] = None):
+    async def add_memory(self, content: str, layer: str, tags: List[str] = None, metadata: Dict[str, Any] = None, project: str = None):
         """Add a new memory to RAE."""
         payload = {
             "content": content,
             "layer": layer,
-            "project": self.project_id,
+            "project": project or self.project_id,
             "tags": tags or [],
             "metadata": metadata or {},
             "source": self.role
@@ -80,13 +80,14 @@ class HiveMindConnector:
             response.raise_for_status()
             return response.json()
 
-    async def query_memories(self, query: str, k: int = 5, layers: List[str] = None) -> List[Dict[str, Any]]:
+    async def query_memories(self, query: str, k: int = 5, layers: List[str] = None, project: str = None, tags: List[str] = None) -> List[Dict[str, Any]]:
         """Query memories using hybrid search."""
         payload = {
             "query": query,
-            "project": self.project_id,
+            "project": project or self.project_id,
             "k": k,
-            "layers": layers
+            "layers": layers,
+            "tags": tags
         }
         async with httpx.AsyncClient() as client:
             response = await client.post(
