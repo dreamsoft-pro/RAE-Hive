@@ -5,7 +5,7 @@ version: "1.0"
 
 # Central Configuration for Memory & Communication
 memory:
-  api_url: "http://rae-api:8000"
+  api_url: "http://localhost:8001"
   tenant_id: "00000000-0000-0000-0000-000000000000"
   project_id: "RAE-Hive"
 

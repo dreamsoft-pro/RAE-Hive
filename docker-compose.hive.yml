@@ -3,15 +3,19 @@ version: '3.8'
 services:
   hive-builder:
     build:
-      context: ../
-      dockerfile: agent_hive/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: hive-builder
+    command: python3 agents/builder/main.py
     user: root
     environment:
-      - RAE_API_URL=http://rae-api-dev:8000
-      - OLLAMA_URL=http://host.docker.internal:11435/api/generate
+      - RAE_API_URL=http://172.17.0.1:8001
+      - OLLAMA_URL=http://172.17.0.1:11434/api/generate
+      - PYTHONPATH=/app
     volumes:
       - ./work_dir:/app/work_dir
+      - ./agents:/app/agents
+      - ./base_agent:/app/base_agent
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - rae-network

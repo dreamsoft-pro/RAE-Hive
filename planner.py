@@ -12,7 +12,9 @@ import httpx
 from datetime import datetime
 
 def load_config():
-    config_path = "agent_hive/config/hive_protocol.yaml"
+    # Use relative path from script directory
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(base_dir, "config/hive_protocol.yaml")
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 

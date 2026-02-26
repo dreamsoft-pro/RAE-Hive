@@ -23,18 +23,18 @@ RUN apt-get update && apt-get install -y \
 # Create working directory
 WORKDIR /app
 
-# Copy SDK code
-COPY sdk/python/rae_memory_sdk /sdk/rae_memory_sdk
-RUN pip install --no-cache-dir -e /sdk/rae_memory_sdk
-
 # Install agent base dependencies
-COPY agent_hive/base_agent/requirements.txt /app/requirements.txt
+COPY base_agent/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy base agent code
-COPY agent_hive/base_agent /app/base_agent
-COPY agent_hive/config /app/config
-COPY agent_hive/hive_engine.py /app/hive_engine.py
+COPY base_agent /app/base_agent
+COPY config /app/config
+COPY hive_engine.py /app/hive_engine.py
+COPY planner.py /app/planner.py
+
+# Create work directory
+RUN mkdir -p /app/work_dir
 
 # Create a non-root user
 RUN useradd -m -u 1000 hiveuser && \
