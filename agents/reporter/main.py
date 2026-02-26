@@ -2,12 +2,16 @@ import asyncio
 import os
 import smtplib
 import structlog
+from dotenv import load_dotenv
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from base_agent.connector import HiveMindConnector
 
 logger = structlog.get_logger("ReportingAgent")
+
+# Load environment variables
+load_dotenv()
 
 # SMTP Configuration (from environment)
 SMTP_HOST = "smtp.gmail.com"
@@ -38,8 +42,7 @@ async def generate_report(connector: HiveMindConnector):
         time = e.get("timestamp", "unknown")
         content = e.get("content", "")
         tags = ", ".join(e.get("tags", []))
-        context += f"[{time}] [{tags}] {content}
-"
+        context += f"[{time}] [{tags}] {content}\n"
 
     # 3. LLM Synthesis
     prompt = f"""
