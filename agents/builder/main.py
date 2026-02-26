@@ -42,15 +42,25 @@ async def builder_loop():
                     for res in evidence_resp["results"]:
                         evidence_context += f"- {res.get('content')}\n"
 
-                # 2. Use RAE to "think" about the implementation
+                # 2. Load Topological Graph if available
+                graph_context = ""
+                graph_path = "/app/contracts/OperationService.graph.json"
+                if os.path.exists(graph_path):
+                    with open(graph_path, "r") as f:
+                        graph_data = f.read()
+                        graph_context = f"\n### TOPOLOGICAL GRAPH (System Dependencies):\n{graph_data}\n"
+
+                # 3. Use RAE to "think" about the implementation
                 thought_prompt = f"""
                 Objective: {objective}
                 {evidence_context}
+                {graph_context}
                 
                 Instructions:
-                1. Use the CRITICAL EVIDENCE provided above (Legacy Source).
-                2. DO NOT create more plans. Write the full TypeScript code NOW.
-                3. Follow the contract strictly.
+                1. Use the CRITICAL EVIDENCE (Legacy Source).
+                2. Respect the TOPOLOGICAL GRAPH (Dependencies).
+                3. DO NOT create more plans. Write the full TypeScript code NOW.
+                4. IMPORT types from ./types/operations.
                 """
                 
                 plan = await connector.think(thought_prompt)

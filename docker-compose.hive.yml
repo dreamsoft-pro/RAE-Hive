@@ -16,6 +16,7 @@ services:
       - ./work_dir:/app/work_dir
       - ./agents:/app/agents
       - ./base_agent:/app/base_agent
+      - ../../contracts:/app/contracts
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - rae-network
