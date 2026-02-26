@@ -52,80 +52,42 @@ async def store_reflection(client: httpx.AsyncClient, tier: str, content: str, t
     await client.post(f"{API_URL}/v2/memories/", json=payload, headers=HEADERS)
 
 async def check_semantic_loops():
-    """Scans tasks and applies hierarchical tactical corrections using Event Sourcing."""
+    """Aggressive time-window based loop detection."""
     async with httpx.AsyncClient() as client:
-        # Fetch base tasks
-        base_resp = await client.post(f"{API_URL}/v2/memories/query", 
-                                   json={"query": "*", "tags": ["hive_task"], "k": 100}, 
-                                   headers=HEADERS)
-        
-        # Fetch updates
-        update_resp = await client.post(f"{API_URL}/v2/memories/query", 
-                                   json={"query": "*", "tags": ["hive_task_update"], "k": 500}, 
-                                   headers=HEADERS)
-        
-        if base_resp.status_code != 200 or update_resp.status_code != 200: return
-        
-        tasks = base_resp.json().get("results", [])
-        updates = update_resp.json().get("results", [])
-        
-        # Aggregate latest state
-        latest_state = {}
-        for up in sorted(updates, key=lambda x: x.get("timestamp", "")):
-            meta = up.get("metadata", {})
-            t_id = meta.get("related_task_id")
-            if t_id:
-                if t_id not in latest_state:
-                    latest_state[t_id] = {}
-                latest_state[t_id].update(meta)
-        
+        # 1. Fetch all tasks that are currently 'in_progress' or 'review'
+        resp = await client.get(f"{API_URL}/v2/memories/?project={PROJECT_ID}&layer=semantic&limit=50", headers=HEADERS)
+        if resp.status_code != 200: return
+        tasks = resp.json().get("results", [])
+
         for task in tasks:
             task_id = task.get("id")
-            current_meta = task.get("metadata", {})
+            content = task.get("content", "").lower()
             
-            # Merge original meta with latest updates
-            if task_id in latest_state:
-                current_meta.update(latest_state[task_id])
-                
-            status = current_meta.get("status", "")
-            
-            if status not in ["in_progress", "review"]:
-                continue
-                
-            # Count audit rejections from episodic
-            # FALLBACK: If tags are missing, search by content pattern
+            # 2. Check recent rejections for this specific task in episodic memory
+            # We look for the literal string "Audit failed" which the Auditor writes
             rej_resp = await client.post(f"{API_URL}/v2/memories/query", 
                                        json={
                                            "query": f"Audit failed for {task_id}", 
-                                           "layers": ["episodic", "semantic"], 
                                            "project": PROJECT_ID,
-                                           "k": 50
-                                       }, 
-                                       headers=HEADERS)
+                                           "layers": ["episodic"],
+                                           "k": 5
+                                       }, headers=HEADERS)
             
-            all_results = rej_resp.json().get("results", []) if rej_resp.status_code == 200 else []
+            rejections = rej_resp.json().get("results", []) if rej_resp.status_code == 200 else []
             
-            # Strict filtering: must contain the task_id and failure keywords
-            rejections = [
-                r for r in all_results 
-                if task_id in r.get("content", "") and ("Audit failed" in r.get("content", "") or "audit_rejection" in r.get("tags", []))
-            ]
-            
-            fail_count = len(rejections)
-            if fail_count > 0:
-                logger.info("rejections_found", task_id=task_id, count=fail_count)
-            
-            if fail_count >= L3_THRESHOLD:
-                await update_task_metadata(client, task_id, {"status": "BLOCKED_L3"})
-                await store_reflection(client, "L3", f"CRITICAL: Task {task_id} failed after full L2 guidance. Requires Contract/Graph refactor.", task_id)
+            # 3. If we see more than 2 rejections, we don't wait. We CRASH the loop.
+            if len(rejections) >= 2:
+                logger.critical("aggressive_break_triggered", task_id=task_id, count=len(rejections))
                 
-            elif fail_count >= L2_THRESHOLD and current_meta.get("escalation_level") != "L2":
-                await update_task_metadata(client, task_id, {"escalation_level": "L2", "requires_expert": True})
-                await store_reflection(client, "L2", f"EXPERT: L1 Model Swap failed for task {task_id}. Initiating Expert Dialectic Audit.", task_id)
+                # Emit a status update that Orkiestrator will see
+                await update_task_metadata(client, task_id, {
+                    "status": "BLOCKED_L3", 
+                    "requires_expert": True,
+                    "escalation_level": "L3",
+                    "reason": "Rapid rejections detected. L1/L2 cannot reach consensus."
+                })
                 
-            elif fail_count >= SWAP_THRESHOLD and not current_meta.get("roles_swapped"):
-                await update_task_metadata(client, task_id, {"roles_swapped": True})
-                await store_reflection(client, "L1", f"WORKING: Cognitive bias detected in L1 for task {task_id}. Swapping Builder/Auditor.", task_id)
+                await store_reflection(client, "L3", f"SYSTEMIC FAILURE: Task {task_id} is in a high-frequency rejection loop. Breaking loop and requesting L3 snippet injection.", task_id)
 
 async def watchdog_loop():
     logger.info("Tactical Semantic Watchdog v2.2 (3-Layer Reflection) active.")

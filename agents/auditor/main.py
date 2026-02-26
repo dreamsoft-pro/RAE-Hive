@@ -23,7 +23,7 @@ async def auditor_loop():
             for task in reviews:
                 task_id = task["metadata"].get("task_id", task["id"])
                 result_filename = task["metadata"].get("result", "OperationService.ts")
-                file_path = os.path.join("work_dir", result_filename)
+                file_path = f"/mnt/extra_storage/RAE-Suite/packages/rae-hive/work_dir/{result_filename}"
                 
                 logger.info("auditing_task", task_id=task_id, file=result_filename)
 
