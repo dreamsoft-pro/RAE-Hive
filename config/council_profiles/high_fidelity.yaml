@@ -1,0 +1,14 @@
+name: High-Fidelity
+layers:
+  L1:
+    model: gpt-4o-mini
+    type: api
+    role: writer
+  L2:
+    model: gemini-1.5-flash
+    type: api
+    role: auditor
+  L3:
+    model: claude-3-5-sonnet-20241022
+    type: api
+    role: oracle

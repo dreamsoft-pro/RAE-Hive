@@ -1,0 +1,15 @@
+name: Hybrid-LTS
+layers:
+  L1:
+    model: deepseek-coder-v2:16b
+    type: local
+    role: writer
+  L2:
+    model: qwen2.5:14b
+    type: local
+    role: auditor
+  L3:
+    model: gpt-4o
+    type: api
+    role: oracle
+escalation_threshold: 2
