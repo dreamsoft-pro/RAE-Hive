@@ -24,25 +24,39 @@ async def generate_report(connector: HiveMindConnector):
     """Aggregates data from RAE and generates a human-readable report."""
     logger.info("generating_report_started")
     
-    # 1. Fetch recent events (last 2 hours)
+    # 1. Calculate time window (last 2 hours)
+    since_time = (datetime.utcnow() - timedelta(hours=2)).isoformat()
+    
+    # 2. Fetch recent events using direct listing (Postgres fallback) to ensure fresh data
     # We query episodic and reflective layers
-    events = await connector.query_memories(
-        query="*", 
-        layers=["episodic", "reflective", "semantic"],
-        project="RAE-Hive",
-        k=50
-    )
+    params = {
+        "project": "RAE-Hive",
+        "since": since_time,
+        "limit": 100
+    }
+    
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{connector.base_url}/v2/memories/", headers=connector.headers, params=params)
+        if resp.status_code != 200:
+            logger.error("failed_to_fetch_events", status=resp.status_code)
+            return "Error: Could not retrieve recent activity from RAE-Core."
+        events = resp.json().get("results", [])
     
     if not events:
-        return "No significant activity recorded in the last 2 hours."
+        return f"No significant activity recorded between {since_time} and now."
 
-    # 2. Format context for LLM analysis
+    # 3. Format context for LLM analysis (Filtering out management reports)
     context = ""
     for e in events:
+        if "management_report" in e.get("tags", []):
+            continue
         time = e.get("timestamp", "unknown")
         content = e.get("content", "")
         tags = ", ".join(e.get("tags", []))
         context += f"[{time}] [{tags}] {content}\n"
+
+    if not context.strip():
+        return "Only background maintenance detected. No new task progress."
 
     # 3. LLM Synthesis
     prompt = f"""

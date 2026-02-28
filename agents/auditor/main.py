@@ -25,6 +25,10 @@ async def auditor_loop():
                 result_filename = task["metadata"].get("result", "OperationService.ts")
                 file_path = f"/mnt/extra_storage/RAE-Suite/packages/rae-hive/work_dir/{result_filename}"
                 
+                # COOL-DOWN: Wait 15 seconds to ensure Builder finished writing
+                logger.info("audit_cooldown_started", task_id=task_id)
+                await asyncio.sleep(15)
+                
                 logger.info("auditing_task", task_id=task_id, file=result_filename)
 
                 if os.path.exists(file_path):
@@ -49,19 +53,36 @@ async def auditor_loop():
                     If there are ANY issues, respond with "REJECTED" followed by a detailed, bulleted list of what must be fixed.
                     """
                     
-                    audit_result = await connector.think(audit_prompt)
+                    # Robust verdict parsing
+                    clean_result = audit_result.strip().upper()
+                    is_passed = "PASSED" in clean_result and "REJECTED" not in clean_result
                     
-                    if audit_result.strip().startswith("PASSED"):
+                    if is_passed:
                         await connector.update_task(task["id"], status="done", result="Audit PASSED by LLM")
                         await connector.log_activity(f"Audit PASSED for task {task_id}")
+                        
+                        # LOG REFLECTIVE DECISION (L2)
+                        await connector.add_memory(
+                            content=f"EXPERT VERDICT (PASSED): Task {task_id} implementation is correct and meets all v2.1 standards.",
+                            layer="reflective",
+                            tags=["audit_passed", "L2", f"task_{task_id}"],
+                            metadata={"task_id": task_id, "reflection_tier": "L2", "status": "approved"}
+                        )
                     else:
-                        # CRITICAL: This exact format triggers the Semantic Watchdog
                         rejection_reason = audit_result.replace("REJECTED", "").strip()
                         await connector.update_task(task["id"], status="in_progress", result="Audit FAILED")
                         
-                        # Log to episodic for Watchdog to count
+                        # LOG REFLECTIVE DECISION (L2)
                         await connector.add_memory(
-                            content=f"Audit failed for {task_id}. Reason: {rejection_reason}",
+                            content=f"EXPERT VERDICT (REJECTED): Task {task_id} failed audit. Reason: {rejection_reason}",
+                            layer="reflective",
+                            tags=["audit_rejected", "L2", f"task_{task_id}"],
+                            metadata={"task_id": task_id, "reflection_tier": "L2", "status": "rejected"}
+                        )
+                        
+                        # Keep episodic log for Watchdog
+                        await connector.add_memory(
+                            content=f"Audit failed for {task_id}. Reason: {rejection_reason[:100]}...",
                             layer="episodic",
                             tags=["hive_log", "auditor", "audit_rejection"],
                             metadata={"task_id": task_id}
