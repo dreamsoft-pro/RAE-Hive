@@ -1,28 +1,16 @@
-# RAE Hive: Autonomous Agent Swarm
+# RAE-Hive: The Execution Layer (Agent Swarm) 🛠️
 
-RAE Hive is a multi-agent system designed to perform autonomous engineering tasks (coding, auditing, and planning) by utilizing **RAE (Reflective Agentic-Memory Engine)** as a shared context and coordination mechanism.
+RAE-Hive is the operational arm of the RAE-Suite, responsible for executing engineering tasks, managing infrastructure, and performing visual validation of user interfaces.
 
-## 🏗️ Architecture
-The system consists of three core agent roles, each running in an isolated Docker container on Node 1 (Lumina):
+## ⚙️ Core Capabilities
+*   **Command Execution**: Safe, containerized execution of shell commands, Python scripts, and SQL queries.
+*   **Infrastructure Management**: Direct control over Docker containers, services, and networking.
+*   **Agent Vision (Playwright)**: Headless browser integration for visual auditing, UI testing, and confirming the status of web-based dashboards (e.g., Grafana, Django Admin).
+*   **Execution Evaluator**: Real-time monitoring of resource usage, execution time, and exit codes to ensure Lean operation.
 
-1.  **Orchestrator (`qwen2.5:14b`):** Plans and deconstructs high-level objectives into atomic tasks.
-2.  **Builder (`deepseek-coder-v2:16b`):** Implements code changes and applies improvements to the codebase.
-3.  **Auditor (`llama3.1:8b`):** Verifies implementation quality and runs automated tests.
+## 🔗 RAE Integration
+Hive is a "RAE-Aware" module. Every significant execution is logged in **RAE-Memory** and analyzed by **RAE-Lab**, contributing to the overall Kaizen cycle of the factory.
 
-## 🧠 Shared Hive Mind
-Communication between agents is strictly decoupled and happens via RAE Memory layers:
-- **Semantic Layer:** Stores Objectives (`hive_objective`) and Tasks (`hive_task`).
-- **Episodic Layer:** Stores granular activity logs (`hive_log`) for auditability.
-- **Reflective Layer:** Stores cross-agent insights and meta-cognitive reflections.
-
-## 🚀 Usage
-To delegate a goal to the swarm, use the Planner CLI:
-```bash
-python3 planner.py "Implement a new feature or fix a bug" --priority 10
-```
-
-## 🛠️ Deployment
-Ensure RAE API is running, then start the hive:
-```bash
-docker compose -f docker-compose.hive.yml up -d
-```
+---
+**Lead Engineer**: Grzegorz Leśniowski (@vproject111)
+**Operational Mode**: Autonomous Swarm
