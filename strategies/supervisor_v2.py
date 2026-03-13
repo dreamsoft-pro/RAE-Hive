@@ -7,8 +7,8 @@ import json
 # Configuration
 API_URL = 'http://localhost:8001/v2/memories/'
 HEADERS = {'X-API-Key': 'test-key', 'X-Tenant-Id': '00000000-0000-0000-0000-000000000000'}
-WORK_DIR = '/mnt/extra_storage/RAE-agentic-memory-agnostic-core/agent_hive/work_dir/components/'
-COMPOSE_DIR = '/mnt/extra_storage/RAE-agentic-memory-agnostic-core/agent_hive/'
+WORK_DIR = '/mnt/extra_storage/RAE-agentic-memory/agent_hive/work_dir/components/'
+COMPOSE_DIR = '/mnt/extra_storage/RAE-agentic-memory/agent_hive/'
 
 def log_to_rae(msg, tags=[]):
     payload = {"content": f"[SUPERVISOR] {msg}", "layer": "reflective", "tags": ["supervisor_log"] + tags}

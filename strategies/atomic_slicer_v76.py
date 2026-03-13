@@ -8,7 +8,7 @@ from pathlib import Path
 
 # v76 - Direct File Slicer (Bypassing DB Integrity Issues)
 BASE_API = "http://localhost:8001/v2/memories" 
-OUT_DIR = '/mnt/extra_storage/RAE-agentic-memory-agnostic-core/agent_hive/work_dir/components/'
+OUT_DIR = '/mnt/extra_storage/RAE-agentic-memory/agent_hive/work_dir/components/'
 FRONTEND_ROOT = '/mnt/extra_storage/dreamsoft_factory/frontend/'
 CHUNK_SIZE = 3000
 HEADERS = {'X-API-Key': 'test-key', 'X-Tenant-Id': '00000000-0000-0000-0000-000000000000'}
