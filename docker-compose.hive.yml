@@ -63,4 +63,4 @@ services:
 networks:
   rae-network:
     external: true
-    name: rae-agentic-memory-agnostic-core_rae-network
+    name: rae-agentic-memory_rae-network

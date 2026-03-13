@@ -18,7 +18,10 @@ class HiveMindConnector:
         
         self.base_url = os.getenv("RAE_API_URL", self.config["memory"]["api_url"])
         self.api_key = os.getenv("RAE_API_KEY", "dev-key")
-        self.tenant_id = self.config["memory"]["tenant_id"]
+        from rae_core.utils.context import RAEContextLocator
+        self.tenant_id = os.getenv("RAE_TENANT_ID") or self.config["memory"].get("tenant_id")
+        if not self.tenant_id or self.tenant_id == "00000000-0000-0000-0000-000000000000":
+            self.tenant_id = RAEContextLocator.get_current_tenant_id()
         self.project_id = self.config["memory"].get("project_id", "RAE-Hive")
         
         self.headers = {
