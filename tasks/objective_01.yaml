@@ -1,0 +1,11 @@
+objective: "Implement SQL-Qdrant Sync Validator for RAE-Core. Ensure data integrity between vector and relational storage."
+tasks:
+  - id: 01_plan
+    role: orchestrator
+    description: "Create a development plan and define the validation logic (detecting orphans in both sides)."
+  - id: 02_implement
+    role: builder
+    description: "Write the Python code in rae_core/sync/validator.py. Use existing adapters for Postgres and Qdrant."
+  - id: 03_audit
+    role: auditor
+    description: "Verify the implementation and generate a quality report. Ensure 100% test coverage for this module."
