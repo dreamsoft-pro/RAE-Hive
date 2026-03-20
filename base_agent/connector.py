@@ -201,9 +201,36 @@ class HiveMindConnector:
             data = response.json()
             answer = data.get("answer", "No answer generated.")
             
-            # Log thinking process to episodic memory
-            await self.log_activity(f"Thinking result: {answer[:100]}...", level="debug")
+            # Log thinking process via A2A Bridge for full auditability
+            await self.interact(
+                target_agent="rae-oracle",
+                payload={"action": "think", "prompt": prompt[:500], "result": answer[:500]},
+                session_id=None
+            )
             return answer
+
+    async def interact(self, target_agent: str, payload: Dict[str, Any], session_id: Optional[str] = None, correlation_id: Optional[str] = None):
+        """Standardized A2A interaction through RAE Bridge."""
+        bridge_payload = {
+            "payload": payload,
+            "source_agent": self.role,
+            "target_agent": target_agent,
+            "session_id": session_id,
+            "correlation_id": correlation_id
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/v2/bridge/interact",
+                    headers=self.headers,
+                    json=bridge_payload,
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                logger.error("bridge_interaction_failed", error=str(e))
+                return None
 
     def read_source_file(self, file_path: str) -> str:
         """Read a file from the mounted source directory."""

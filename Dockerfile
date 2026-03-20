@@ -1,37 +1,57 @@
-# Dockerfile for Base Agent
-# Lightweight Python image with RAE SDK pre-installed
+# Dockerfile for RAE-Hive Agent Swarm
+# Enterprise Grade Python 3.14 Environment
 
-FROM python:3.10-slim
+FROM ubuntu:22.04 AS builder
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Install basic tools
+# Install Python 3.14 via deadsnakes
 RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    build-essential \
-    ca-certificates \
-    gnupg \
-    lsb-release \
-    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
-    && apt-get update && apt-get install -y docker-ce-cli \
+    software-properties-common curl git build-essential \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y \
+    python3.14 python3.14-dev python3.14-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# Create working directory
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.14
+RUN ln -sf /usr/bin/python3.14 /usr/bin/python3
+
 WORKDIR /app
 
-# Install agent base dependencies
+# Install dependencies in a virtualenv
+RUN python3.14 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt \
+    && pip install --no-cache-dir fastapi uvicorn httpx structlog pyyaml
+
+# STAGE 2: Final Runtime
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN apt-get update && apt-get install -y \
+    software-properties-common curl \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y python3.14 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the virtualenv from builder
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy base agent code
 COPY base_agent /app/base_agent
 COPY config /app/config
 COPY hive_engine.py /app/hive_engine.py
 COPY planner.py /app/planner.py
+COPY rae_libs /app/rae_libs
 
 # Create work directory
 RUN mkdir -p /app/work_dir
@@ -41,5 +61,5 @@ RUN useradd -m -u 1000 hiveuser && \
     chown -R hiveuser:hiveuser /app
 USER hiveuser
 
-# Default command (overridden by specific agents)
-CMD ["python", "-m", "base_agent.main"]
+# Default command
+CMD ["python", "hive_engine.py"]
