@@ -53,6 +53,9 @@ async def auditor_loop():
                     If there are ANY issues, respond with "REJECTED" followed by a detailed, bulleted list of what must be fixed.
                     """
                     
+                    # 2. Perform AI-driven Audit
+                    audit_result = await connector.llm_call(audit_prompt)
+
                     # Robust verdict parsing
                     clean_result = audit_result.strip().upper()
                     is_passed = "PASSED" in clean_result and "REJECTED" not in clean_result

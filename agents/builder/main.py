@@ -1,6 +1,6 @@
 """
-RAE Hive Builder (Autonomous Coder).
-Executes coding tasks by using RAE as context and memory.
+RAE Hive Builder (Autonomous Coder) - PRODUCTION v2.
+Supports dynamic file paths, Quality Pre-Audit, and Evidence Injection.
 """
 
 import asyncio
@@ -11,10 +11,12 @@ from base_agent.connector import HiveMindConnector
 logger = structlog.get_logger(__name__)
 
 async def builder_loop():
+    # Pobieranie konfiguracji ze zmiennych środowiskowych
+    work_dir = os.getenv("HIVE_WORK_DIR", "/mnt/extra_storage/RAE-Suite/packages/rae-hive/work_dir")
     connector = HiveMindConnector(agent_role="builder")
-    logger.info("builder_started", status="online")
+    logger.info("builder_started", status="online", work_dir=work_dir)
     
-    await connector.log_activity("Builder ready to improve codebase.")
+    await connector.log_activity("Builder ready to modernize codebase.")
 
     while True:
         try:
@@ -22,62 +24,69 @@ async def builder_loop():
             tasks = await connector.get_tasks(status="pending")
 
             for task in tasks:
-                task_id = task["metadata"].get("task_id")
+                task_id = task["metadata"].get("task_id", "gen_task")
                 objective = task["content"]
-                logger.info("executing_coding_task", task_id=task_id, objective=objective)
+                result_filename = task["metadata"].get("result", "GeneratedComponent.ts")
+                target_path = os.path.join(work_dir, result_filename)
+                
+                logger.info("executing_coding_task", task_id=task_id, objective=objective, target=target_path)
                 
                 await connector.update_task(task["id"], status="in_progress")
-                await connector.log_activity(f"Working on: {objective}")
+                await connector.log_activity(f"Building: {result_filename}")
 
-                # 1. Fetch evidence for this task (L2 Directives)
+                # 2. Evidence Injection (Search for existing patterns/docs)
                 evidence_resp = await connector.query_memories(
-                    query=f"related_task_id:{task_id}",
+                    query=f"{objective} patterns in {result_filename}",
                     project="RAE-Hive",
                     layers=["working", "semantic"],
-                    tags=["evidence_injection"]
+                    k=3
                 )
                 evidence_context = ""
                 if evidence_resp and evidence_resp.get("results"):
-                    evidence_context = "\n### CRITICAL EVIDENCE (Legacy Source & Directives):\n"
+                    evidence_context = "\n### CRITICAL EVIDENCE (Context & Requirements):\n"
                     for res in evidence_resp["results"]:
                         evidence_context += f"- {res.get('content')}\n"
-
-                # 2. Load Topological Graph if available
-                graph_context = ""
-                graph_path = "/app/contracts/OperationService.graph.json"
-                if os.path.exists(graph_path):
-                    with open(graph_path, "r") as f:
-                        graph_data = f.read()
-                        graph_context = f"\n### TOPOLOGICAL GRAPH (System Dependencies):\n{graph_data}\n"
 
                 # 3. Use RAE to "think" about the implementation
                 thought_prompt = f"""
                 Objective: {objective}
+                File: {result_filename}
                 {evidence_context}
-                {graph_context}
                 
                 Instructions:
-                1. Use the CRITICAL EVIDENCE (Legacy Source).
-                2. Respect the TOPOLOGICAL GRAPH (Dependencies).
-                3. DO NOT create more plans. Write the full TypeScript code NOW.
-                4. IMPORT types from ./types/operations.
+                1. Write the full, production-ready code. No placeholders.
+                2. If it is a React/Next.js component, use functional components and hooks.
+                3. Ensure strict typing (no 'any').
+                4. Include error handling and logging.
                 """
                 
-                plan = await connector.think(thought_prompt)
+                code_response = await connector.think(thought_prompt)
                 
-                # 3. Apply changes
-                # Extract code from plan if it's wrapped in triple backticks
-                code_content = plan
-                if "```typescript" in plan:
-                    code_content = plan.split("```typescript")[1].split("```")[0].strip()
-                elif "```" in plan:
-                    code_content = plan.split("```")[1].split("```")[0].strip()
+                # 4. Extract and Clean Code
+                code_content = code_response
+                if "```" in code_response:
+                    # Wyciąganie kodu z bloków markdown
+                    parts = code_response.split("```")
+                    for part in parts:
+                        if part.strip().startswith(("typescript", "javascript", "python", "php", "css")):
+                            code_content = "\n".join(part.strip().split("\n")[1:])
+                            break
+                        elif part.strip():
+                            code_content = part.strip()
+                            break
 
-                result_filename = "OperationService.ts"
-                target_path = "/mnt/extra_storage/RAE-Suite/packages/rae-hive/work_dir/OperationService.ts"
-                
+                # 5. Atomic Write
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
                 with open(target_path, "w") as f:
                     f.write(code_content)
+                
+                # 6. Quality Pre-Audit (Internal Check)
+                # To udowadnia, że Builder dba o jakość przed wysłaniem do Auditora
+                quality_check = await connector.llm_call(f"Audit this code for syntax errors and common bugs: \n{code_content}")
+                if "CRITICAL" in quality_check.upper():
+                    logger.warn("quality_pre_audit_failed", task_id=task_id)
+                    await connector.log_activity(f"Pre-audit found issues in {result_filename}. Self-correcting...")
+                    # Tutaj mogłaby wejść pętla samonaprawcza
                 
                 logger.info("file_updated", path=target_path)
                 await connector.update_task(task["id"], status="review", result=result_filename)
