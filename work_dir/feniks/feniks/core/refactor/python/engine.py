@@ -74,7 +74,7 @@ class PythonRefactorEngine:
         Generate a refactoring plan based on the SystemModel.
         This acts as the "Feniks orchestrator" logic.
         """
-        plan = {"project_id": system_model.project_id, "candidates": []}
+        plan = {"project": system_model.project, "candidates": []}
 
         # Heuristic: Find large modules in system_model (mock logic for now as we rely on real implementation)
         # In real scenario, we'd iterate system_model.modules and check metrics
