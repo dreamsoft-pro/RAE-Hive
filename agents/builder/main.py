@@ -5,6 +5,7 @@ Supports dynamic file paths, Quality Pre-Audit, and Evidence Injection.
 
 import asyncio
 import os
+from pathlib import Path
 import structlog
 from base_agent.connector import HiveMindConnector
 

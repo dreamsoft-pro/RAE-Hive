@@ -5,6 +5,7 @@ Uses LLM to verify code against contracts, ISO 27001, and logical parity.
 
 import asyncio
 import os
+from pathlib import Path
 import structlog
 from base_agent.connector import HiveMindConnector
 

@@ -1,11 +1,12 @@
 # TIMESTAMP: 2026-02-23 14:55:00
 import httpx
 import os
+from pathlib import Path
 import time
 
 API_URL = 'http://localhost:8001/v2/memories/'
 HEADERS = {'X-API-Key': 'test-key', 'X-Tenant-Id': '00000000-0000-0000-0000-000000000000'}
-FRONTEND_ROOT = '/mnt/extra_storage/dreamsoft_factory/frontend/'
+FRONTEND_ROOT = os.environ.get('RAE_FRONTEND_ROOT', str(Path(__file__).resolve().parent.parent / 'FRONTEND_ROOT_default'))
 CHUNK_SIZE = 2500
 
 def ingest_file(filename):
