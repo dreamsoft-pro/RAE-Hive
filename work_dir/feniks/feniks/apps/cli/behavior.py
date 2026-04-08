@@ -37,14 +37,14 @@ def handle_behavior_record(args):
     DOM state, logs) for legacy system behavior analysis.
 
     Args:
-        args.project_id: Project identifier
+        args.project: Project identifier
         args.scenario_id: Scenario ID to execute
         args.environment: Environment (legacy/candidate/staging/production)
         args.output: Output JSONL file for snapshots
         args.count: Number of times to execute scenario (default: 1)
     """
     log.info("=== Behavior Record ===")
-    log.info(f"Project: {args.project_id}")
+    log.info(f"Project: {args.project}")
     log.info(f"Scenario: {args.scenario_id}")
     log.info(f"Environment: {args.environment}")
     log.info(f"Output: {args.output}")
@@ -72,7 +72,7 @@ def handle_behavior_record(args):
     placeholder_snapshot = {
         "id": f"snapshot-{args.scenario_id}-{datetime.now().isoformat()}",
         "scenario_id": args.scenario_id,
-        "project_id": args.project_id,
+        "project": args.project,
         "environment": args.environment,
         "success": True,
         "created_at": datetime.now().isoformat(),
@@ -94,13 +94,13 @@ def handle_behavior_build_contracts(args):
     BehaviorContracts that define expected system behavior.
 
     Args:
-        args.project_id: Project identifier
+        args.project: Project identifier
         args.input: Input JSONL file with snapshots
         args.output: Output JSONL file for contracts
         args.min_snapshots: Minimum snapshots required per scenario (default: 3)
     """
     log.info("=== Build Behavior Contracts ===")
-    log.info(f"Project: {args.project_id}")
+    log.info(f"Project: {args.project}")
     log.info(f"Input: {args.input}")
     log.info(f"Output: {args.output}")
     log.info(f"Min snapshots: {args.min_snapshots}")
@@ -151,7 +151,7 @@ def handle_behavior_build_contracts(args):
         contract = {
             "id": f"contract-{scenario_id}-{datetime.now().isoformat()}",
             "scenario_id": scenario_id,
-            "project_id": args.project_id,
+            "project": args.project,
             "version": "1.0.0",
             "derived_from_snapshot_ids": [s["id"] for s in scenario_snapshots],
             "created_at": datetime.now().isoformat(),
@@ -179,14 +179,14 @@ def handle_behavior_check(args):
     BehaviorContracts to detect regressions.
 
     Args:
-        args.project_id: Project identifier
+        args.project: Project identifier
         args.contracts: Input JSONL file with contracts
         args.snapshots: Input JSONL file with candidate snapshots
         args.output: Output JSONL file for check results
         args.fail_on_violations: Exit with error code if violations found
     """
     log.info("=== Behavior Check ===")
-    log.info(f"Project: {args.project_id}")
+    log.info(f"Project: {args.project}")
     log.info(f"Contracts: {args.contracts}")
     log.info(f"Snapshots: {args.snapshots}")
     log.info(f"Output: {args.output}")
@@ -248,7 +248,7 @@ def handle_behavior_check(args):
         check_result = {
             "snapshot_id": snapshot["id"],
             "contract_id": contract["id"],
-            "project_id": args.project_id,
+            "project": args.project,
             "passed": passed,
             "violations": [],
             "risk_score": risk_score,
@@ -304,10 +304,10 @@ def handle_behavior_define_scenario(args):
 
     Args:
         args.from_file: Path to scenario YAML file
-        args.project_id: Project identifier
+        args.project: Project identifier
     """
     log.info("=== Define Behavior Scenario ===")
-    log.info(f"Project: {args.project_id}")
+    log.info(f"Project: {args.project}")
     log.info(f"From file: {args.from_file}")
 
     file_path = Path(args.from_file)

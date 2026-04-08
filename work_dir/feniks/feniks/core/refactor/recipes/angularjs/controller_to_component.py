@@ -74,7 +74,7 @@ class ControllerToComponentRecipe(RefactorRecipe):
         return RefactorRisk.MEDIUM
 
     def analyze(self, system_model: SystemModel, target: Optional[Dict[str, Any]] = None) -> Optional[RefactorPlan]:
-        log.info(f"Analyzing for AngularJS controllers: {system_model.project_id}")
+        log.info(f"Analyzing for AngularJS controllers: {system_model.project}")
         controllers = self._find_controllers(system_model, target)
 
         if not controllers:
@@ -97,7 +97,7 @@ class ControllerToComponentRecipe(RefactorRecipe):
 
         plan = RefactorPlan(
             recipe_name=self.name,
-            project_id=system_model.project_id,
+            project=system_model.project,
             target_modules=[m.name for m in controller_metadata],
             target_files=list(set(target_files)),
             rationale=f"Migrate {len(controller_metadata)} AngularJS controllers to Next.js components",

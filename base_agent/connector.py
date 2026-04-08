@@ -22,7 +22,7 @@ class HiveMindConnector:
         self.tenant_id = os.getenv("RAE_TENANT_ID") or self.config["memory"].get("tenant_id")
         if not self.tenant_id or self.tenant_id == "00000000-0000-0000-0000-000000000000":
             self.tenant_id = RAEContextLocator.get_current_tenant_id()
-        self.project_id = self.config["memory"].get("project_id", "RAE-Hive")
+        self.project = self.config["memory"].get("project", "RAE-Hive")
         
         self.headers = {
             "X-API-Key": self.api_key,
@@ -46,7 +46,7 @@ class HiveMindConnector:
 
     async def list_memories(self, layer: str = None, tags: List[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
         """List memories from a specific layer."""
-        params = {"limit": limit, "project": self.project_id}
+        params = {"limit": limit, "project": self.project}
         if layer:
             params["layer"] = layer
             
@@ -75,7 +75,7 @@ class HiveMindConnector:
         payload = {
             "content": content,
             "layer": layer,
-            "project": project or self.project_id,
+            "project": project or self.project,
             "tags": tags or [],
             "metadata": metadata or {},
             "source": self.role
@@ -93,7 +93,7 @@ class HiveMindConnector:
         """Query memories using hybrid search."""
         payload = {
             "query": query,
-            "project": project or self.project_id,
+            "project": project or self.project,
             "k": k,
             "layers": layers,
             "tags": tags
@@ -120,7 +120,7 @@ class HiveMindConnector:
         """Fetch tasks using multiple fallback strategies (Tags -> Metadata -> Content)."""
         async with httpx.AsyncClient() as client:
             # 1. Try to get all memories for the project from semantic layer (Postgres fallback)
-            params = {"project": self.project_id, "layer": "semantic", "limit": 100}
+            params = {"project": self.project, "layer": "semantic", "limit": 100}
             resp = await client.get(f"{self.base_url}/v2/memories/", headers=self.headers, params=params)
             
             if resp.status_code != 200:
@@ -187,7 +187,7 @@ class HiveMindConnector:
         """Use RAE's agent execution API to think and generate a response."""
         payload = {
             "tenant_id": self.tenant_id,
-            "project": self.project_id,
+            "project": self.project,
             "prompt": f"Acting as {self.role.upper()}. {prompt}"
         }
         async with httpx.AsyncClient(timeout=120.0) as client:

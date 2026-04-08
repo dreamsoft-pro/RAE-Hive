@@ -22,7 +22,7 @@ async def add_objective(goal: str, priority: int = 1):
     config = load_config()
     base_url = os.getenv("RAE_API_URL", config["memory"]["api_url"])
     tenant_id = config["memory"]["tenant_id"]
-    project_id = config["memory"].get("project_id", "RAE-Hive")
+    project = config["memory"].get("project", "RAE-Hive")
     api_key = os.getenv("RAE_API_KEY", "dev-key")
 
     headers = {
@@ -34,7 +34,7 @@ async def add_objective(goal: str, priority: int = 1):
     payload = {
         "content": goal,
         "layer": "semantic",
-        "project": project_id,
+        "project": project,
         "tags": ["hive_objective", "pending"],
         "importance": priority / 10.0,
         "metadata": {

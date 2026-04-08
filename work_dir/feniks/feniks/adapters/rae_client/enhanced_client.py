@@ -57,8 +57,8 @@ class EnhancedRAEClient(RAEClient):
 
     def query_reflections(
         self,
-        project_id: str,
-        query_text: str,
+        project: str,
+        query: str,
         layer: str = "semantic",
         top_k: int = 10,
         min_similarity: float = 0.7,
@@ -67,8 +67,8 @@ class EnhancedRAEClient(RAEClient):
         Query RAE for relevant reflections using semantic search.
 
         Args:
-            project_id: Project identifier
-            query_text: Natural language query
+            project: Project identifier
+            query: Natural language query
             layer: Memory layer to search (episodic, working, semantic, ltm)
             top_k: Maximum number of results
             min_similarity: Minimum similarity threshold (0.0-1.0)
@@ -79,20 +79,20 @@ class EnhancedRAEClient(RAEClient):
         Raises:
             RAEError: If query fails
         """
-        log.info(f"Querying RAE reflections: project={project_id}, layer={layer}, query='{query_text[:50]}...'")
+        log.info(f"Querying RAE reflections: project={project}, layer={layer}, query='{query[:50]}...'")
 
         try:
             payload = {
-                "project_id": project_id,
+                "project": project,
                 "tenant_id": self.tenant_id,
-                "query": query_text,
+                "query": query,
                 "layer": layer,
                 "top_k": top_k,
                 "min_similarity": min_similarity,
                 "include_metadata": True,
             }
 
-            response = self._make_request(method="POST", endpoint="/memory/query", data=payload)
+            response = self._make_request(method="POST", endpoint="/v2/memories/query", data=payload)
 
             results = response.get("results", [])
             log.info(f"Found {len(results)} relevant reflections")
@@ -203,7 +203,7 @@ class EnhancedRAEClient(RAEClient):
 
         Args:
             local_reflection: MetaReflection from Feniks MetaReflectionEngine
-            context: Optional additional context (project_id, tags, etc.)
+            context: Optional additional context (project, tags, etc.)
 
         Returns:
             MetaReflection: Enriched reflection with RAE insights
@@ -215,12 +215,12 @@ class EnhancedRAEClient(RAEClient):
 
         try:
             # Build enrichment query from reflection content
-            query_text = self._build_enrichment_query(local_reflection)
+            query = self._build_enrichment_query(local_reflection)
 
             # Query RAE for relevant insights
             rae_insights = self.query_reflections(
-                project_id=context.get("project_id", "default") if context else "default",
-                query_text=query_text,
+                project=context.get("project", "default") if context else "default",
+                query=query,
                 layer="semantic",
                 top_k=5,
                 min_similarity=0.7,
@@ -275,7 +275,7 @@ class EnhancedRAEClient(RAEClient):
         try:
             payload = {
                 "tenant_id": self.tenant_id,
-                "project_id": refactor_decision.get("project_id", "default"),
+                "project": refactor_decision.get("project", "default"),
                 "refactor_id": refactor_decision.get("refactor_id"),
                 "refactor_type": refactor_decision.get("refactor_type"),
                 "decision": refactor_decision,
@@ -373,7 +373,7 @@ class EnhancedRAEClient(RAEClient):
         enriched = MetaReflection(
             id=local_reflection.id,
             timestamp=local_reflection.timestamp,
-            project_id=local_reflection.project_id,
+            project=local_reflection.project,
             level=local_reflection.level,
             scope=local_reflection.scope,
             impact=local_reflection.impact,

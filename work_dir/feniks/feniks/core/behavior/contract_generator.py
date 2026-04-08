@@ -91,7 +91,7 @@ class ContractGenerator:
             raise FeniksError(f"Snapshots from multiple scenarios: {scenario_ids}")
 
         scenario_id = snapshots[0].scenario_id
-        project_id = snapshots[0].project_id
+        project = snapshots[0].project
 
         log.info(f"Generating contract from {len(snapshots)} snapshots (scenario={scenario_id})")
 
@@ -111,7 +111,7 @@ class ContractGenerator:
         contract = BehaviorContract(
             id=contract_id or f"contract-{scenario_id}-{uuid.uuid4().hex[:8]}",
             scenario_id=scenario_id,
-            project_id=project_id,
+            project=project,
             version=version,
             http_contract=http_contract,
             dom_contract=dom_contract,

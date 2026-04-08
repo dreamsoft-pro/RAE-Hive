@@ -7,7 +7,7 @@ version: "1.0"
 memory:
   api_url: "http://localhost:8001"
   tenant_id: "00000000-0000-0000-0000-000000000000"
-  project_id: "RAE-Hive"
+  project: "RAE-Hive"
 
 # Model Router (Shared Inference)
 models:
