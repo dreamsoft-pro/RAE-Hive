@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 
 async def builder_loop():
     # Pobieranie konfiguracji ze zmiennych środowiskowych
-    work_dir = os.getenv("HIVE_WORK_DIR", "/mnt/extra_storage/RAE-Suite/packages/rae-hive/work_dir")
+    work_dir = os.getenv("HIVE_WORK_DIR", os.environ.get('RAE_PROJECT_ROOT', str(Path(__file__).resolve().parent.parent)))
     connector = HiveMindConnector(agent_role="builder")
     logger.info("builder_started", status="online", work_dir=work_dir)
     
