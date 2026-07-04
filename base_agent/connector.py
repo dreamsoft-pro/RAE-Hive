@@ -5,9 +5,11 @@ Standardized interface for agents to interact with RAE Memory API v2.
 
 import os
 import yaml
+import json
 import httpx
 import structlog
 from typing import Any, Dict, List, Optional
+from rae_core.llm import resolve_llm_runtime
 
 logger = structlog.get_logger(__name__)
 
@@ -230,7 +232,15 @@ class HiveMindConnector:
                 return response.json()
             except Exception as e:
                 logger.error("bridge_interaction_failed", error=str(e))
-                return None
+                try:
+                    logger.info("bridge_interaction_fallback_local", target_agent=target_agent)
+                    prompt = f"Target Agent: {target_agent}\nPayload: {json.dumps(payload)}"
+                    provider = await resolve_llm_runtime(requirements={"requires_reasoning": True}, target_agent=target_agent)
+                    res_text = await provider.generate(prompt)
+                    return {"status": "success", "payload": {"interaction_data": {"text": res_text}}}
+                except Exception as local_err:
+                    logger.error("bridge_interaction_local_fallback_failed", error=str(local_err))
+                    return None
 
     def read_source_file(self, file_path: str) -> str:
         """Read a file from the mounted source directory."""
