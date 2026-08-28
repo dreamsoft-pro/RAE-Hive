@@ -5,7 +5,10 @@ Configuration and fixtures for RAE Hive tests.
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from agent_hive.base_agent.connector import HiveMindConnector
+try:
+    from agent_hive.base_agent.connector import HiveMindConnector
+except ImportError:
+    from base_agent.connector import HiveMindConnector
 
 @pytest.fixture
 def mock_connector():
